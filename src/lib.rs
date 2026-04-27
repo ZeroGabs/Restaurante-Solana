@@ -1,142 +1,145 @@
 use anchor_lang::prelude::*;
 // ID del Solana Program, este espacio se llena automaticamente al haver el "build"
-declare_id!("");
+declare_id!("Gjf327RenZrfNfuqkMjPFGUHMCvxEWW5K9K5Dc4Zs5W9");
 
 #[program] // Macro que convierte codigo de Rust a Solana. Apartir de aqui empieza tu codigo!
-pub mod biblioteca {
+pub mod restaurante {
     use super::*; // Importa todas los structs y enums definidos fuera del modulo
 
-    //////////////////////////// Instruccion: Crear Biblioteca /////////////////////////////////////
+    //////////////////////////// Instruccion: Crear un Restaurante /////////////////////////////////////
     /*
-    Permite la creacion de una PDA (Program Derived Adress), un tipo especial de cuenta en solana que permite prescindir 
-    del uso de llaves privadas para la firma de transacciones. 
-
-    Esta cuenta contendra el objeto (struct) de tipo Biblioteca donde podremos almacenar los Libros. 
-    La creacion de la PDA depende de 3 cosas:
-        * Wallet address 
-        * Program ID 
-        * string representativo, regularmente relacionado con el nombre del proyecto
-    
-    La explicacion de esto continua en el struct NuevaBiblioteca
-
     Parametros de entrada:
         * nombre -> nombre de la biblioteca -> tipo string
      */
-    pub fn crear_biblioteca(context: Context<NuevaBiblioteca>, nombre: String) -> Result<()> {
+    pub fn crear_restaurante(context: Context<NuevoRestaurante>, nombre: String) -> Result<()> {
         // "Context" siempre suele ir como primer parametro, ya que permite acceder al objeto o cuenta con el que queremos interactuar
-        // Dentro del context va al tipo de objeto o cuenta con el que deseamos interactuar. 
-        let owner_id = context.accounts.owner.key(); // Accedemos al wallet address del caller 
+        // Dentro del context va al tipo de objeto o cuenta con el que deseamos interactuar.
+        let owner_id = context.accounts.owner.key(); // Accedemos al wallet address del caller
         msg!("Owner id: {}", owner_id); // Print de verificacion
 
-        let libros: Vec<Libro> = Vec::new(); // Crea un vector vacio 
+        let menu: Vec<ItemMenu> = Vec::new(); // Crea el menú vacio
 
-        // Creamos un Struct de tipo biblioteca y lo guardamos directamente 
-        context.accounts.biblioteca.set_inner(Biblioteca { 
+        // Creamos un Struct de tipo restaurante y lo guardamos directamente
+        context.accounts.restaurante.set_inner(Restaurante {
             owner: owner_id,
             nombre,
-            libros,
+            menu,
         });
-        Ok(()) // Representa una transaccion exitosa 
+        Ok(()) // Representa una transaccion exitosa
     }
 
-    //////////////////////////// Instruccion: Agregar Libro /////////////////////////////////////
+    //////////////////////////// Instruccion: Agregar platillos, bebidas, postres (Items) /////////////////////////////////////
     /*
-    Agrega un libro al vector de libros ontenido en el struct Biblioteca. 
-    En este caso el contexto empleado es el struct NuevoLibro. Mientras que NuevaBiblioteca permite crear 
-    Instancias de una Biblioteca. NuevoLibro permite crear y modificar los valores relacionados a cualquier
-    struct de tipo Libro.
+    Agrega un item al menu del restaurante contenido en el struct Restaurante. 
+    En este caso el contexto empleado es el struct GestionRestaurante. Mientras que NuevoRestaurante permite crear 
+    Instancias de un restaurante. GestionRestaurante permite crear y modificar los valores relacionados a cualquier
+    struct de tipo item.
 
     Parametros de entrada:
-        * nombre -> nombre del libro -> string
-        * paginas -> numero de paginas del libro -> u16
-     */ 
-    pub fn agregar_libro(context: Context<NuevoLibro>, nombre: String, paginas: u16) -> Result<()> {
-        require!( // Medida de seguridad para identificar que SOLO el owner de la biblioteca sea el que hace cambios en ella
-            context.accounts.biblioteca.owner == context.accounts.owner.key(), // Condicion, true -> continua, false -> error
+        * nombre -> nombre del item -> string
+        * precios -> precio del item -> u64
+        * tipo -> que es el item?? platillo, bebida o postre -> string
+     */
+    pub fn agregar_item(context: Context<GestionRestaurante>, nombre: String, precio: u64, tipo: String) -> Result<()> {
+        require!(
+            context.accounts.restaurante.owner == context.accounts.owner.key(), // Condicion, true -> continua, false -> error
             Errores::NoEresElOwner // Codigo de error, ver enum Errores
-        ); 
+        );
 
-        let libro = Libro { // Creacion de un struct tipo Libro
+        let item = ItemMenu {
+            // Creacion de un struct tipo Item
             nombre,
-            paginas,
+            precio,
+            tipo,
             disponible: true,
         };
 
-        context.accounts.biblioteca.libros.push(libro); // Agrega el Libro al vector de libros de Biblioteca
+        context.accounts.restaurante.menu.push(item); // Agrega el item al vector de menus del restaurante
 
         Ok(()) // Transaccion exitosa
     }
 
-    //////////////////////////// Instruccion: Eliminar Libro /////////////////////////////////////
+    //////////////////////////// Instruccion: Eliminar Item /////////////////////////////////////
     /*
-    Elimina un libro apartir de su nombre. Error si libro no existe, Error si vector vacio. 
+    Elimina un item apartir de su nombre.
 
     Parametros de entrada:
-        * nombre -> Nombre del libro -> string
+        * nombre -> Nombre del item -> string
      */
-    pub fn eliminar_libro(context: Context<NuevoLibro>, nombre: String) -> Result<()> {
-        require!( // Medida de seguridad
-            context.accounts.biblioteca.owner == context.accounts.owner.key(),
+    pub fn eliminar_item(context: Context<GestionRestaurante>, nombre: String) -> Result<()> {
+        require!(
+            // Medida de seguridad
+            context.accounts.restaurante.owner == context.accounts.owner.key(),
             Errores::NoEresElOwner
         );
 
-        let libros = &mut context.accounts.biblioteca.libros; // Referencia mutable al vector de libros
+        let menu = &mut context.accounts.restaurante.menu; // Referencia mutable al vector de menus
 
-        for i in 0..libros.len() { // Se itera mediante el indice todo el contenido del vector en busca del libro a eliminar
-            if libros[i].nombre == nombre { // Si lo encuentra prodece a borrarlo mediante el metodo remove
-                libros.remove(i);
-                msg!("Libro {} eliminado!", nombre); // Mensaje de borrado exitoso
+        for i in 0..menu.len() {
+            // Se itera mediante el indice todo el contenido del vector en busca del item a eliminar
+            if menu[i].nombre == nombre {
+                // Si lo encuentra prodece a borrarlo mediante el metodo remove
+                menu.remove(i);
+                msg!("Item {} eliminado!", nombre); // Mensaje de borrado exitoso
                 return Ok(()); // Transaccion exitosa
+                
             }
         }
-        Err(Errores::LibroNoExiste.into()) // Transaccion fallida, nunca encontro el libro
+        Err(Errores::ItemNoExiste.into()) // Transaccion fallida, nunca encontro el item
     }
 
-    //////////////////////////// Instruccion: Ver Libros /////////////////////////////////////
+    //////////////////////////// Instruccion: Ver Items /////////////////////////////////////
     /*
-    Muestra en el log de la transaccion el contenido completo del vector de libros de la Biblioteca
+    Muestra en el log de la transaccion el contenido completo del vector de items del Restaurante
 
-    Parametros de entrada:
-        Ninguno
+   
      */
-    pub fn ver_libros(context: Context<NuevoLibro>) -> Result<()> {
-        require!( // Medida de seguridad 
-            context.accounts.biblioteca.owner == context.accounts.owner.key(),
+    pub fn ver_menu(context: Context<GestionRestaurante>) -> Result<()> {
+        require!(
+            // Medida de seguridad
+            context.accounts.restaurante.owner == context.accounts.owner.key(),
             Errores::NoEresElOwner
         );
 
         // :#? requiere que NuevoLibro tenga atributo Debug. Permite la visualizacion completa del vector en el log
-        msg!("La lista de libros actualmente es: {:#?}", context.accounts.biblioteca.libros); // Print en log
-        Ok(()) // Transaccion exitosa 
+        msg!(
+            "El menú actual es: {:#?}",
+            context.accounts.restaurante.menu
+        ); // Print en log
+        Ok(()) // Transaccion exitosa
     }
 
-    
-    //////////////////////////// Instruccion: Alternar Estado /////////////////////////////////////
+    //////////////////////////// Instruccion: Alternar Disponibilidad /////////////////////////////////////
     /* 
     Cambia el estado de disponible de false a true o de true a false.
 
     Parametros de entrada:
-        * nombre -> Nombre del libro -> string
+        * nombre -> Nombre del item -> string
      */
-    pub fn alternar_estado(context: Context<NuevoLibro>, nombre: String) -> Result<()> {
-        require!( // Medida de seguridad
-            context.accounts.biblioteca.owner == context.accounts.owner.key(),
+    pub fn alternar_disponibilidad(context: Context<GestionRestaurante>, nombre: String) -> Result<()> {
+        require!(
+            // Medida de seguridad
+            context.accounts.restaurante.owner == context.accounts.owner.key(),
             Errores::NoEresElOwner
         );
 
-        let libros = &mut context.accounts.biblioteca.libros; // Referencia mutable al vector de libros
-        for i in 0..libros.len() { // Se itera mediante el indice el vector de libros
-            let estado = libros[i].disponible;  // Se almacena el estado del vector actual
-
-            if libros[i].nombre == nombre { // Si ecuentra el nombre del libro procede a cambiar el valor del estado 
-                let nuevo_estado = !estado;
-                libros[i].disponible = nuevo_estado;
-                msg!("El libro: {} ahora tiene un valor de disponibilidad: {}", nombre, nuevo_estado); // log print de la nueva disponibilidad
+        let menu = &mut context.accounts.restaurante.menu; // Referencia mutable al vector de items
+        for i in 0..menu.len() {
+            // Se itera mediante el indice el vector de items
+            if menu[i].nombre == nombre {
+                // Si ecuentra el nombre del item procede a cambiar el valor del estado
+                let nuevo_estado = !menu[i].disponible;
+                menu[i].disponible = nuevo_estado;
+                msg!(
+                    "El item: {} esta disponibe: {}",
+                    nombre,
+                    nuevo_estado
+                ); // log print de la nueva disponibilidad
                 return Ok(()); // Transaccion exitosa
             }
         }
 
-        Err(Errores::LibroNoExiste.into()) // Transaccion fallida, libro no existe
+        Err(Errores::ItemNoExiste.into())
     }
 
 }
@@ -149,22 +152,23 @@ NombreDelError, (En camel case)
 */
 #[error_code]
 pub enum Errores {
-    #[msg("Error, no eres el propietario de la biblioteca que deseas modificar")]
+    #[msg("Error, no eres el propietario de este restaurante")]
     NoEresElOwner,
-    #[msg("Error, el libro con el que deseas interactuar no existe")]
-    LibroNoExiste,
+    #[msg("Error, el item del menú no existe")]
+    ItemNoExiste,
 }
 
 #[account] // Especifica que el strcut es una cuenta que se almacenara en la blockchain
-#[derive(InitSpace)] // Genera la constante INIT_SPACE y determina el espacio de almacenamiento necesario 
-pub struct Biblioteca { // Define la Biblioteca
-    owner: Pubkey, // Pubkey es un formato de llave publica de 32 bytes 
+#[derive(InitSpace)] // Genera la constante INIT_SPACE y determina el espacio de almacenamiento necesario
+pub struct Restaurante {
+    // Define el restaurante
+    pub owner: Pubkey, // Pubkey es un formato de llave publica de 32 bytes
 
     #[max_len(60)] // Cantidad maxima de caracteres del string: nombre
-    nombre: String,
+    pub nombre: String,
 
-    #[max_len(10)] // Tamaño maximo del vector libros 
-    libros: Vec<Libro>,
+    #[max_len(15)] // Tamaño maximo del vector items
+    pub menu: Vec<ItemMenu>,
 }
 
 /*
@@ -177,41 +181,43 @@ Struct interno o secundario (No es una cuenta). Se define por derive y cuenta co
     * Debug -> Para mostrarlo en log con ":?" o ":#?"
 */
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, InitSpace, PartialEq, Debug)]
-pub struct Libro {
+pub struct ItemMenu {
     #[max_len(60)]
-    nombre: String,
+    pub nombre: String,
 
-    // Los siguientes datos no rquieren de max_len porque ya estan definidos (numero de 16 bits y false o true)
-    paginas: u16, 
+    pub precio: u64, //Precio
+    #[max_len(20)]
 
-    disponible: bool,
+    pub tipo: String, //Platillo, bebidad o postre
+
+    pub disponible: bool,
 }
-
 
 // Creacion de los contextos para las instrucciones (funciones)
 #[derive(Accounts)] // Especifica que este struct describe las cuentas que se requieren para determinada instruccion
-pub struct NuevaBiblioteca<'info> { // contexto de la instruccion
-    #[account(mut)] 
+pub struct NuevoRestaurante<'info> {
+    // contexto de la instruccion
+    #[account(mut)]
     pub owner: Signer<'info>, // Se define que el owner como el que pagara la transaccion, por eso es mut, para que cambie el balance de la cuenta
 
     #[account(
         init, // Inidica que al llamar la instruccuion se creara una cuenta
         // puede ser remplazado por "init_if_needed" para que solo se cree una vez por caller
         payer = owner, // Se especifica que quien paga el llamado a la instruccion, en este caso llama la instruccion 
-        space = Biblioteca::INIT_SPACE + 8, // Se calcula el espacio requerido para almacenar el Solana Program On-Chain
-        seeds = [b"biblioteca", owner.key().as_ref()], // Se especifica que la cuenta es una PDA que depende de un string y el id del owner
+        space = Restaurante::INIT_SPACE + 8, // Se calcula el espacio requerido para almacenar el Solana Program On-Chain
+        seeds = [b"restaurante", owner.key().as_ref()], // Se especifica que la cuenta es una PDA que depende de un string y el id del owner
         bump // Metodo para determinar el el id de la biblioteca en base a lo anterior 
     )]
-    pub biblioteca: Account<'info, Biblioteca>, // Se especifica que la cuenta creada (PDA) almacenara la biblioteca 
+    pub restaurante: Account<'info, Restaurante>, // Se especifica que la cuenta creada (PDA) almacenara la biblioteca
 
-    pub system_program: Program<'info, System>, // Programa necesario para crear la cuenta 
+    pub system_program: Program<'info, System>, // Programa necesario para crear la cuenta
 }
 
-// Contexto para la creacion y modificacion de libros 
+// Contexto para la creacion y modificacion de libros
 #[derive(Accounts)] // Especifica que este struct se requiere para todas las instrucciones relacionadas con la creacion o modificacion de Libro
-pub struct NuevoLibro<'info> {
+pub struct GestionRestaurante<'info> {
     pub owner: Signer<'info>, // El owner de la cuenta es quien paga la transaccion
 
-    #[account(mut)] 
-    pub biblioteca: Account<'info, Biblioteca>, // Se marca biblioteca como mutable porque se modificara tanto el vector como los libros que contiene
+    #[account(mut)]
+    pub restaurante: Account<'info, Restaurante>, // Se marca biblioteca como mutable porque se modificara tanto el vector como los libros que contiene
 }
